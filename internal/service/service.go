@@ -92,7 +92,3 @@ func calculateCapital(rows [][]string) float64 {
 
 	return capital
 }
-
-func (s *Service) GetPortfolio(id uuid.UUID) (*portfolio.Portfolio, error) {
-	return nil, nil
-}

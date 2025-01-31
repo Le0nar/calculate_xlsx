@@ -11,7 +11,6 @@ import (
 
 type service interface {
 	CalculatePortfolio(id uuid.UUID, file *multipart.File) (*portfolio.Portfolio, error)
-	GetPortfolio(id uuid.UUID) (*portfolio.Portfolio, error)
 }
 
 type Handler struct {
