@@ -3,7 +3,9 @@ package service
 import (
 	"errors"
 	"mime/multipart"
+	"runtime"
 	"strconv"
+	"sync"
 
 	"github.com/Le0nar/calculate_xlsx/internal/portfolio"
 	"github.com/google/uuid"
@@ -37,24 +39,54 @@ func (s *Service) CalculatePortfolio(id uuid.UUID, file *multipart.File) (*portf
 		return nil, errors.New("ошибка при получении строк")
 	}
 
+	capital := calculateCapital(rows)
+
 	portfolio := portfolio.Portfolio{
 		UserID:  id,
-		Capital: 0,
-	}
-
-	// TODO: добавить калькуляцию с горутинами здесь
-	// Пример обработки строк
-	for _, row := range rows {
-		for _, cell := range row {
-			value, err := strconv.ParseFloat(cell, 64)
-
-			if err == nil {
-				portfolio.Capital += value
-			}
-		}
+		Capital: capital,
 	}
 
 	return &portfolio, nil
+}
+
+func calculateCapital(rows [][]string) float64 {
+	var capital float64
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	numGoroutines := runtime.NumCPU() - 1
+	rowsPerGoroutines := len(rows) / numGoroutines
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+
+		go func(i int) {
+			defer wg.Done()
+
+			firstIndex := i * rowsPerGoroutines
+			lastIndex := firstIndex + rowsPerGoroutines
+
+			if i == numGoroutines-1 {
+				lastIndex = len(rows)
+			}
+
+			for _, row := range rows[firstIndex:lastIndex] {
+				for _, cell := range row {
+					value, err := strconv.ParseFloat(cell, 64)
+
+					if err == nil {
+						mu.Lock()
+						capital += value
+						mu.Unlock()
+					}
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	return capital
 }
 
 func (s *Service) GetPortfolio(id uuid.UUID) (*portfolio.Portfolio, error) {
