@@ -2,16 +2,17 @@ package handler
 
 import (
 	"fmt"
+	"mime/multipart"
 	"net/http"
+	"time"
 
 	"github.com/Le0nar/calculate_xlsx/internal/portfolio"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/xuri/excelize/v2"
 )
 
 type service interface {
-	CalculatePortfolio(dto portfolio.CaclulatePortfolioDto) error
+	CalculatePortfolio(id uuid.UUID, file *multipart.File) (*portfolio.Portfolio, error)
 	GetPortfolio(id uuid.UUID) (*portfolio.Portfolio, error)
 }
 
@@ -24,6 +25,14 @@ func NewHandler(s service) *Handler {
 }
 
 func (h *Handler) calculatePortfolio(c *gin.Context) {
+	stringedId := c.Param("id")
+
+	id, err := uuid.Parse(stringedId)
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Получаем файл из формы
 	file, _, err := c.Request.FormFile("file")
 	if err != nil {
@@ -31,39 +40,19 @@ func (h *Handler) calculatePortfolio(c *gin.Context) {
 		return
 	}
 
-	// Открываем файл Excel с помощью excelize
-	f, err := excelize.OpenReader(file)
+	start := time.Now()
+
+	portfolio, err := h.service.CalculatePortfolio(id, &file)
+
+	duration := time.Since(start)
+	fmt.Println("Время выполнения:", duration)
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка при чтении файла Excel"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Получаем все имена листов в файле
-	sheetNames := f.GetSheetList()
-	if len(sheetNames) == 0 {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Листы не найдены в файле"})
-		return
-	}
-
-	// Читаем первый лист
-	sheet := sheetNames[0] // Берем имя первого листа
-	rows, err := f.GetRows(sheet)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка при получении строк"})
-		return
-	}
-
-	// TODO: добавить калькуляцию с горутинами здесь
-	// Пример обработки строк
-	for _, row := range rows {
-		for _, cell := range row {
-			fmt.Println(cell)
-		}
-	}
-
-	// Ответ
-	c.JSON(http.StatusOK, gin.H{"message": "Файл успешно обработан"})
-
+	c.JSON(http.StatusOK, gin.H{"portfolio": portfolio})
 }
 
 func (h *Handler) getPortfolio(c *gin.Context) {
