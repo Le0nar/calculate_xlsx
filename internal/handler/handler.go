@@ -1,10 +1,8 @@
 package handler
 
 import (
-	"fmt"
 	"mime/multipart"
 	"net/http"
-	"time"
 
 	"github.com/Le0nar/calculate_xlsx/internal/portfolio"
 	"github.com/gin-gonic/gin"
@@ -40,12 +38,7 @@ func (h *Handler) calculatePortfolio(c *gin.Context) {
 		return
 	}
 
-	start := time.Now()
-
 	portfolio, err := h.service.CalculatePortfolio(id, &file)
-
-	duration := time.Since(start)
-	fmt.Println("Время выполнения:", duration)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

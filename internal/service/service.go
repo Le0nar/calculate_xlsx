@@ -70,17 +70,21 @@ func calculateCapital(rows [][]string) float64 {
 				lastIndex = len(rows)
 			}
 
+			var localCouner float64
+
 			for _, row := range rows[firstIndex:lastIndex] {
 				for _, cell := range row {
 					value, err := strconv.ParseFloat(cell, 64)
-
 					if err == nil {
-						mu.Lock()
-						capital += value
-						mu.Unlock()
+						localCouner += value
 					}
+
 				}
 			}
+
+			mu.Lock()
+			capital += localCouner
+			mu.Unlock()
 		}(i)
 	}
 
