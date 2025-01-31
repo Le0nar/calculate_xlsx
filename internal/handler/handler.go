@@ -10,7 +10,7 @@ import (
 )
 
 type service interface {
-	CalculatePortfolio(id uuid.UUID, file *multipart.File) (*portfolio.Portfolio, error)
+	CreatePortfolio(id uuid.UUID, file *multipart.File) (*portfolio.Portfolio, error)
 }
 
 type Handler struct {
@@ -21,7 +21,7 @@ func NewHandler(s service) *Handler {
 	return &Handler{service: s}
 }
 
-func (h *Handler) calculatePortfolio(c *gin.Context) {
+func (h *Handler) createPortfolio(c *gin.Context) {
 	stringedId := c.Param("id")
 
 	id, err := uuid.Parse(stringedId)
@@ -37,7 +37,7 @@ func (h *Handler) calculatePortfolio(c *gin.Context) {
 		return
 	}
 
-	portfolio, err := h.service.CalculatePortfolio(id, &file)
+	portfolio, err := h.service.CreatePortfolio(id, &file)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -47,10 +47,6 @@ func (h *Handler) calculatePortfolio(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"portfolio": portfolio})
 }
 
-func (h *Handler) getPortfolio(c *gin.Context) {
-
-}
-
 func (h *Handler) InitRouter() *gin.Engine {
 	r := gin.Default()
 
@@ -58,8 +54,7 @@ func (h *Handler) InitRouter() *gin.Engine {
 	{
 		portfolio := api.Group("/portfolio")
 		{
-			portfolio.POST("/:id", h.calculatePortfolio)
-			portfolio.GET("/:id", h.getPortfolio)
+			portfolio.POST("/:id", h.createPortfolio)
 		}
 	}
 

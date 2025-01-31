@@ -19,7 +19,7 @@ func NewService() *Service {
 	return &Service{}
 }
 
-func (s *Service) CalculatePortfolio(id uuid.UUID, file *multipart.File) (*portfolio.Portfolio, error) {
+func (s *Service) CreatePortfolio(id uuid.UUID, file *multipart.File) (*portfolio.Portfolio, error) {
 	// Открываем файл Excel с помощью excelize
 	f, err := excelize.OpenReader(*file)
 	if err != nil {
