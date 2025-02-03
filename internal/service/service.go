@@ -15,30 +15,51 @@ import (
 
 type repository interface {
 	CreatePortfolio(portf *portfolio.Portfolio) error
-	GetPortfolioById(id uuid.UUID) (*portfolio.Portfolio, error)
+	GetPortfolioById(userID uuid.UUID) (*portfolio.Portfolio, error)
+}
+
+type cache interface {
+	CreatePortfolio(portf *portfolio.Portfolio) error
+	GetPortfolioById(userID uuid.UUID) (*portfolio.Portfolio, error)
 }
 
 // TODO: add Cache field
 type Service struct {
 	Repository repository
+	// TODO: use interface
+	Cache cache
 }
 
 func NewService(repo repository) *Service {
 	return &Service{
 		Repository: repo,
+		Cache:      NewCache(),
 	}
 }
 
 func (s *Service) CreatePortfolio(id uuid.UUID, file *multipart.File) (*portfolio.Portfolio, error) {
-	// 1) TODO: Check cache
-
-	// 2) TODO: check DB Check cache
-	portf, err := s.Repository.GetPortfolioById(id)
+	// 1) Look for cache
+	portf, err := s.Cache.GetPortfolioById(id)
 	if err != nil {
-		fmt.Printf("data base read error: %s", err.Error())
+		fmt.Printf("cache read error: %s \n", err.Error())
 	}
 
 	if portf != nil {
+		return portf, nil
+	}
+
+	// 2) Look for DB
+	portf, err = s.Repository.GetPortfolioById(id)
+	if err != nil {
+		fmt.Printf("data base read error: %s \n", err.Error())
+	}
+
+	if portf != nil {
+		err = s.Cache.CreatePortfolio(portf)
+		if err != nil {
+			fmt.Printf("write to cache error: %s \n", err.Error())
+		}
+
 		return portf, nil
 	}
 
@@ -49,20 +70,23 @@ func (s *Service) CreatePortfolio(id uuid.UUID, file *multipart.File) (*portfoli
 		return nil, err
 	}
 
-	portfolio := portfolio.Portfolio{
+	portf = &portfolio.Portfolio{
 		UserID:  id,
 		Capital: capital,
 	}
 
-	err = s.Repository.CreatePortfolio(&portfolio)
+	err = s.Repository.CreatePortfolio(portf)
 
 	if err != nil {
-		fmt.Printf("data base write error: %s", err.Error())
+		fmt.Printf("data base write error: %s \n", err.Error())
 	}
 
-	// TODO: set portfolio to cache
+	err = s.Cache.CreatePortfolio(portf)
+	if err != nil {
+		fmt.Printf("write to cache error: %s \n", err.Error())
+	}
 
-	return &portfolio, nil
+	return portf, nil
 }
 
 func calculateCapital(file *multipart.File) (float64, error) {

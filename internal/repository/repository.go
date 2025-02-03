@@ -26,6 +26,8 @@ func (r *Repository) CreatePortfolio(portf *portfolio.Portfolio) error {
 		return fmt.Errorf("failed to insert portfolio: %w", err)
 	}
 
+	fmt.Printf("WRITE TO DB: %v\n", portf)
+
 	return nil
 }
 func (r *Repository) GetPortfolioById(id uuid.UUID) (*portfolio.Portfolio, error) {
@@ -45,6 +47,8 @@ func (r *Repository) GetPortfolioById(id uuid.UUID) (*portfolio.Portfolio, error
 		}
 		return nil, fmt.Errorf("failed to query portfolio: %w", err)
 	}
+
+	fmt.Printf("READ FROM DB: %v\n", portfiolio)
 
 	return &portfiolio, nil
 }
