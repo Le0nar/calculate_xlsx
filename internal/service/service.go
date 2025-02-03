@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"mime/multipart"
 	"runtime"
 	"strconv"
@@ -12,44 +13,78 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-type Service struct {
+type repository interface {
+	CreatePortfolio(portf *portfolio.Portfolio) error
+	GetPortfolioById(id uuid.UUID) (*portfolio.Portfolio, error)
 }
 
-func NewService() *Service {
-	return &Service{}
+// TODO: add Cache field
+type Service struct {
+	Repository repository
+}
+
+func NewService(repo repository) *Service {
+	return &Service{
+		Repository: repo,
+	}
 }
 
 func (s *Service) CreatePortfolio(id uuid.UUID, file *multipart.File) (*portfolio.Portfolio, error) {
-	// Открываем файл Excel с помощью excelize
-	f, err := excelize.OpenReader(*file)
+	// 1) TODO: Check cache
+
+	// 2) TODO: check DB Check cache
+	portf, err := s.Repository.GetPortfolioById(id)
 	if err != nil {
-		return nil, errors.New("ошибка при чтении файла Excel")
+		fmt.Printf("data base read error: %s", err.Error())
 	}
 
-	// Получаем все имена листов в файле
-	sheetNames := f.GetSheetList()
-	if len(sheetNames) == 0 {
-		return nil, errors.New("листы не найдены в файле")
+	if portf != nil {
+		return portf, nil
 	}
 
-	// Читаем первый лист
-	sheet := sheetNames[0] // Берем имя первого листа
-	rows, err := f.GetRows(sheet)
+	// 3) Calculate
+	capital, err := calculateCapital(file)
+
 	if err != nil {
-		return nil, errors.New("ошибка при получении строк")
+		return nil, err
 	}
-
-	capital := calculateCapital(rows)
 
 	portfolio := portfolio.Portfolio{
 		UserID:  id,
 		Capital: capital,
 	}
 
+	err = s.Repository.CreatePortfolio(&portfolio)
+
+	if err != nil {
+		fmt.Printf("data base write error: %s", err.Error())
+	}
+
+	// TODO: set portfolio to cache
+
 	return &portfolio, nil
 }
 
-func calculateCapital(rows [][]string) float64 {
+func calculateCapital(file *multipart.File) (float64, error) {
+	// Открываем файл Excel с помощью excelize
+	f, err := excelize.OpenReader(*file)
+	if err != nil {
+		return 0, errors.New("ошибка при чтении файла Excel")
+	}
+
+	// Получаем все имена листов в файле
+	sheetNames := f.GetSheetList()
+	if len(sheetNames) == 0 {
+		return 0, errors.New("листы не найдены в файле")
+	}
+
+	// Читаем первый лист
+	sheet := sheetNames[0] // Берем имя первого листа
+	rows, err := f.GetRows(sheet)
+	if err != nil {
+		return 0, errors.New("ошибка при получении строк")
+	}
+
 	var capital float64
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -90,5 +125,5 @@ func calculateCapital(rows [][]string) float64 {
 
 	wg.Wait()
 
-	return capital
+	return capital, nil
 }

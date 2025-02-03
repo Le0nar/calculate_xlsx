@@ -17,7 +17,8 @@ func main() {
 
 	defer db.Close()
 
-	service := service.NewService()
+	repo := repository.NewRepository(db)
+	service := service.NewService(repo)
 	handler := handler.NewHandler(service)
 
 	router := handler.InitRouter()
