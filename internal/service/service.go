@@ -23,11 +23,9 @@ type cache interface {
 	GetPortfolioById(userID uuid.UUID) (*portfolio.Portfolio, error)
 }
 
-// TODO: add Cache field
 type Service struct {
 	Repository repository
-	// TODO: use interface
-	Cache cache
+	Cache      cache
 }
 
 func NewService(repo repository) *Service {
